@@ -1,0 +1,179 @@
+############################################
+# PREFIX
+# Inner tmux = Ctrl-P
+############################################
+unbind C-b
+set-option -g prefix C-p
+bind C-p last-window
+
+############################################
+# TERMINAL + COLOR + CLIPBOARD
+############################################
+set -g default-terminal "tmux-256color"
+
+# Replace terminal-overrides instead of appending repeatedly.
+# Enables OSC 52 clipboard support.
+set -g terminal-overrides 'linux*:AX@,*:XT,*:Ms=\E]52;%p1%s;%p2%s\007'
+
+# RGB/color support.
+set -g terminal-features '*:RGB'
+
+# Let tmux set the clipboard using OSC 52.
+# In your nested setup, this should pass:
+# inner tmux -> outer tmux -> Windows Terminal -> Windows clipboard
+set -g set-clipboard on
+
+# Important for nested tmux / OSC 52 forwarding.
+set -g allow-passthrough on
+
+set -g bell-action none
+set -sg escape-time 0
+
+############################################
+# MOUSE + SCROLLING
+############################################
+set -g mouse on
+
+# Smart scroll behavior:
+# - In normal shell: scroll tmux history
+# - In alternate-screen apps like less/man/nano/vim: send Up/Down keys
+bind -n WheelUpPane if-shell -F "#{alternate_on}" \
+    "send-keys -N 3 Up" \
+    "copy-mode -e; send-keys -M"
+
+bind -n WheelDownPane if-shell -F "#{alternate_on}" \
+    "send-keys -N 3 Down" \
+    "send-keys -M"
+
+############################################
+# SCROLLBACK
+############################################
+set -g history-limit 10000
+
+############################################
+# WINDOWS + PANES
+############################################
+set -g base-index 0
+setw -g pane-base-index 0
+set -g renumber-windows on
+
+############################################
+# SPLITS
+############################################
+bind | split-window -h
+bind - split-window -v
+
+############################################
+# PANE NAVIGATION
+############################################
+bind h select-pane -L
+bind j select-pane -D
+bind k select-pane -U
+bind l select-pane -R
+
+############################################
+# PANE RESIZE
+############################################
+bind -r H resize-pane -L 5
+bind -r J resize-pane -D 5
+bind -r K resize-pane -U 5
+bind -r L resize-pane -R 5
+
+############################################
+# COPY MODE
+############################################
+setw -g mode-keys vi
+
+# Copy selection to tmux buffer.
+# With set-clipboard on, this should also emit OSC 52.
+bind -T copy-mode-vi Enter send -X copy-selection-and-cancel
+bind -T copy-mode-vi MouseDragEnd1Pane send -X copy-selection-and-cancel
+
+# Vim-style selection helpers.
+bind -T copy-mode-vi v send -X begin-selection
+bind -T copy-mode-vi y send -X copy-selection-and-cancel
+
+# Fast navigation inside scrollback.
+bind -T copy-mode-vi g send -X history-top
+bind -T copy-mode-vi G send -X history-bottom
+
+############################################
+# PAGEUP / PAGEDOWN BEHAVIOR
+# Inner tmux
+############################################
+
+# Remove any previous root PageUp/PageDown bindings.
+unbind -n PageUp
+unbind -n PageDown
+
+# PageUp:
+# - If an alternate-screen app is active, such as nano/vim/less/man,
+#   send PageUp to that app.
+# - Else enter inner tmux copy-mode and scroll up.
+bind -n PageUp if -F '#{alternate_on}' {
+    send-keys PageUp
+} {
+    copy-mode -u
+}
+
+# PageDown:
+# - If an alternate-screen app is active, send PageDown to that app.
+# - Else enter inner tmux copy-mode.
+bind -n PageDown if -F '#{alternate_on}' {
+    send-keys PageDown
+} {
+    copy-mode
+}
+
+# Once already in inner copy-mode, PageUp/PageDown move through inner scrollback.
+bind -T copy-mode-vi PageUp send -X page-up
+bind -T copy-mode-vi PageDown send -X page-down
+
+############################################
+# STATUS BAR
+# Inner tmux status bar = green
+############################################
+set -g status on
+set -g status-position bottom
+set -g status-interval 5
+
+set -g status-style bg=colour22,fg=white
+set -g status-left-style bg=colour22,fg=white,bold
+set -g status-right-style bg=colour22,fg=white
+
+set -g status-left-length 50
+set -g status-left '#[fg=green,bold]#S  #[default]#[fg=white,bg=colour22]| '
+
+setw -g window-status-format '#[fg=white,bg=colour22] #I:#W '
+setw -g window-status-current-format '#[fg=colour22,bg=white,bold] #I:#W #[default]'
+
+set -g status-right-length 50
+set -g status-right '#[fg=white,bg=colour22]#H | #(whoami) | %Y-%m-%d %H:%M'
+
+############################################
+# TERMINAL APP COMPATIBILITY
+############################################
+set -g focus-events on
+set -g assume-paste-time 0
+
+############################################
+# WINDOW NAMING
+############################################
+set -g allow-rename off
+set -g automatic-rename off
+set -g automatic-rename-format '#{pane_current_command}'
+
+############################################
+# SESSION BEHAVIOR
+############################################
+set -g detach-on-destroy off
+
+############################################
+# EASY CONFIG RELOAD
+############################################
+bind r source-file ~/.tmux.conf \; display "Inner tmux config reloaded!"
+
+
+## TEMP TEST
+bind-key I display-message "pane_current_command=#{pane_current_command}"
+
